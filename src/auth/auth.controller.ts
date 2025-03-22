@@ -17,6 +17,8 @@ import { v4 as uuidv4 } from 'uuid';
 import base64url from 'base64url';
 import { UserService } from '../user/user.service.js';
 import { Hex } from 'viem';
+import { PublicKey, Signature, WebAuthnP256 } from 'ox';
+import { SignMetadata } from 'ox/WebAuthnP256';
 
 @Controller('auth')
 export class AuthController {
@@ -90,6 +92,7 @@ export class AuthController {
   @Post('passkey/verify')
   @UseGuards(AuthGuard('webauthn'))
   async verifyPasskey(@Req() req, @Body() body: { publicKeyHex: Hex }) {
+    
     this.logger.log('verification complete');
 
     // Fetch the user from the database using the data in req.user
@@ -113,6 +116,34 @@ export class AuthController {
     req.session.userId = user?.customId;
 
     return req.user;
+  }
+
+  @Post('passkey/verify-signer')
+  async verifySafe(@Body() data: {metadata: SignMetadata, challenge: Hex, signature: any, credentialId: string}) {
+
+    this.logger.log('Verifying passkey signature');
+    this.logger.verbose(data);
+
+    const user = await this.userService.findByPasskeyId(data.credentialId);
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    const hexKey = user.passkey?.publicKeyHex as Hex;
+ 
+    const publicKey = PublicKey.fromHex(hexKey);
+
+    const result = await WebAuthnP256.verify({ 
+      metadata: data.metadata, 
+      challenge: data.challenge, 
+      publicKey: publicKey, 
+      signature: Signature.fromHex(data.signature), 
+    })
+
+    this.logger.log(`Result: ${result}`);
+
+    return user;
   }
 
   @Post('logout')
