@@ -10,6 +10,8 @@ export function getChainSlug(chainId: number): string | undefined {
       return 'sepolia';
     case 420:
       return 'optimism-sepolia';
+    case 42161:
+      return 'arbitrum';
     default:
       return undefined;
   }

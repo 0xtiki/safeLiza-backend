@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards, Logger, Req, Get } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Logger, Req, Get, Param } from '@nestjs/common';
 import { ConfigSafeService } from './config.safe.service.js';
 import { TransactSafeService } from './transact.safe.service.js';
 import { SafeConfigDto, SafeSessionConfigDto, UserOperationCallDto } from './safe.dtos.js';
@@ -132,9 +132,9 @@ export class SafeController {
     return result;
   }
 
-  @Post('configure-session')
-  async configureSession(@Req() req, @Body() data: { safeAddress: Hex, chainId: number, sessionConfigDto: SafeSessionConfigDto }) {
-    this.logger.log('Configuring sessions');
+  @Post('configure-smart-session')
+  async configureSmartSession(@Req() req, @Body() data: { safeAddress: Hex, chainId: number, sessionConfigDto: SafeSessionConfigDto }) {
+    this.logger.log('Configuring smart sessions');
     this.logger.verbose(data);
 
     const userId = req.session.userId;
@@ -149,7 +149,7 @@ export class SafeController {
       throw new Error('User not found');
     }
 
-    return this.erc7579SafeService.configureSession(user, data.safeAddress, data.chainId, data.sessionConfigDto);
+    return this.erc7579SafeService.configureSmartSession(user, data.safeAddress, data.chainId, data.sessionConfigDto);
   }
 
   @Post('sign-session-creation')
@@ -188,6 +188,18 @@ export class SafeController {
       webauthnValidatorInstalled,
       smartSessionsValidatorInstalled,
     };
+  }
+
+  @Get('get-session-details/:safeAddress/:chainId')
+  async getSessionDetails(@Param('safeAddress') safeAddress: Hex, @Param('chainId') chainId: number) {
+    return this.userService.getSessionDetails(safeAddress, chainId);
+  }
+
+  @Post('activate-endpoint')
+  async activateEndpoint(@Body() data: { path: string, safeAddress: Hex, chainId: number, active: boolean }) {
+    this.logger.log('Activating endpoint');
+    this.logger.verbose(data);
+    return this.userService.activateEndpoint(data.path, data.safeAddress, data.chainId, data.active);
   }
 
   // @Post('transact')

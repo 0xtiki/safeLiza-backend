@@ -6,8 +6,19 @@ export class SafeSessionConfig {
   sessionKey!: string;
 
   @Prop()
-  sessionConfigHash!: string;
+  permissionEnableHash!: string;
+
+  @Prop()
+  permissionId!: string;
+
+  @Prop()
+  sessionDetails!: string;
+
+  @Prop({ type: Object })
+  endpoint!: { active: boolean, url: string };
 }
+
+
 
 @Schema({ _id: false })
 export class Safe extends Document {

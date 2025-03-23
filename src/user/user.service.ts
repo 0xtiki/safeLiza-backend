@@ -2,9 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User } from './schemas/user.schema.js';
-import { isAddress } from 'viem';
+import { Hex, isAddress } from 'viem';
 import { SafeConfigResultDto } from '../safe/safe.dtos.js';
-import { Safe } from './schemas/safe.schema.js';
+import { Safe, SafeSessionConfig } from './schemas/safe.schema.js';
 @Injectable()
 export class UserService {
   constructor(
@@ -36,6 +36,42 @@ export class UserService {
   async createWithEthAddress(ethAddress: string): Promise<User> {
     const user = new this.userModel({ ethAddress });
     return user.save();
+  }
+
+  async getSessionDetails(safeAddress: Hex, chainId: number): Promise<SafeSessionConfig[] | null> {
+    const user = await this.userModel.findOne({ safesByChain: { $elemMatch: { chainId: Number(chainId), safes: { $elemMatch: { safeAddress: safeAddress } } } } });
+    const safe = user?.safesByChain.find(sbc => sbc.chainId === Number(chainId))?.safes.find(s => s.safeAddress === safeAddress);
+    return safe?.safeModuleSessionConfig || null;
+  }
+
+  async activateEndpoint(path: string, safeAddress: Hex, chainId: number, active: boolean): Promise<boolean> {
+    const user = await this.userModel.findOneAndUpdate(
+      { 
+        safesByChain: { 
+          $elemMatch: { 
+            chainId: Number(chainId), 
+            safes: { $elemMatch: { safeAddress: safeAddress } } 
+          } 
+        },
+        "safesByChain.safes.safeModuleSessionConfig.endpoint.url": path
+      },
+      {
+        $set: {
+          "safesByChain.$[chain].safes.$[safe].safeModuleSessionConfig.$[config].endpoint.active": active
+        }
+      },
+      {
+        arrayFilters: [
+          { "chain.chainId": Number(chainId) },
+          { "safe.safeAddress": safeAddress },
+          { "config.endpoint.url": path }
+        ],
+        new: true
+      }
+    );
+
+    console.log('USER', user);
+    return user ? true : false;
   }
 
   async addSafe(identifier: string, safeConfig: SafeConfigResultDto): Promise<User | null> {

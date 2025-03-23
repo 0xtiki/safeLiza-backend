@@ -1,7 +1,7 @@
 import { IsArray, IsEthereumAddress, IsHexadecimal, IsNumber, IsNumberString, ValidateNested, IsOptional, IsString, IsObject } from "class-validator";
 import { Hex } from "viem";
 import { Transform, Type } from "class-transformer";
-
+import { policyParams } from "./Types.js";
 class CallDto {
     @IsString()
     type: 'call' = 'call';
@@ -91,18 +91,18 @@ export class UserOperationDto {
     nonce!: string;
 }
 
-class PublicKeyDto {
-  @IsNumber()
-  prefix!: number;
+// class PublicKeyDto {
+//   @IsNumber()
+//   prefix!: number;
 
-  @Transform(({ value }) => BigInt(value))
-  @IsNumberString()
-  x!: bigint;
+//   @Transform(({ value }) => BigInt(value))
+//   @IsNumberString()
+//   x!: bigint;
 
-  @Transform(({ value }) => BigInt(value))
-  @IsNumberString()
-  y!: bigint;
-}
+//   @Transform(({ value }) => BigInt(value))
+//   @IsNumberString()
+//   y!: bigint;
+// }
 
 export class PasskeyDto {
   @IsString()
@@ -149,18 +149,18 @@ export class SafeConfigResultDto {
   };
 }
 
-export class PolicyDto {
-  @IsString()
-  @IsEthereumAddress()
-  policy!: Hex;
+// export class PolicyDto {
+//   @IsString()
+//   @IsEthereumAddress()
+//   policy!: Hex;
 
-  @IsString()
-  @IsEthereumAddress()
-  address!: Hex;
+//   @IsString()
+//   @IsEthereumAddress()
+//   address!: Hex;
 
-  @IsString()
-  initData!: Hex;
-}
+//   @IsString()
+//   initData!: Hex;
+// }
 
 export class SafeSessionActionsDto {
   @IsString()
@@ -170,20 +170,20 @@ export class SafeSessionActionsDto {
   @IsString()
   actionTargetSelector!: Hex;
 
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => PolicyDto)
-  actionPolicies!: PolicyDto[];
+  // @IsArray()
+  // @ValidateNested({ each: true })
+  // @Type(() => PolicyDto)
+  actionPolicies!: any;
 }
 
 export class SafeSessionConfigDto {
   @IsString()
   salt?: string;
 
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => PolicyDto)
-  userOpPolicies?: PolicyDto[];
+  // @IsArray()
+  // @ValidateNested({ each: true })
+  // @Type(() => PolicyDto)
+  userOpPolicies!: policyParams[];
 
   @IsObject()
   erc7739Policies?: {
@@ -191,9 +191,10 @@ export class SafeSessionConfigDto {
     erc1271Policies: any[];
   };
 
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => SafeSessionActionsDto)
-  actions!: SafeSessionActionsDto[];
+  // @IsArray()
+  // @ValidateNested({ each: true })
+  // @Type(() => SafeSessionActionsDto)
+  // actions!: SafeSessionActionsDto[];
+  actions!: any;
 }
 

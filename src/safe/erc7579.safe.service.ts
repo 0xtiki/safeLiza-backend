@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 // import { getOwnableValidator, getOwnableValidatorOwners, getSmartSessionsValidator } from '@rhinestone/module-sdk';
 import { RpcService } from './rpc.service.js';
-import { Address, Client, encodeFunctionData, Hex, parseAbi, parseEther, PublicClient, toBytes, toHex, prepareEncodeFunctionData } from 'viem';
+import { Address, Client, encodeFunctionData, Hex, parseAbi, parseEther, PublicClient, toBytes, toHex, prepareEncodeFunctionData, HexToBytesErrorType, keccak256 } from 'viem';
 import { PasskeyDto, SafeSessionConfigDto } from './safe.dtos.js';
 import { PublicKey } from "ox";
 import { generatePrivateKey } from 'viem/accounts';
@@ -26,11 +26,17 @@ import {
   getOwnableValidator,
   encodeValidationData,
   getEnableSessionDetails,
+  getValueLimitPolicy,
+  getSpendingLimitsPolicy,
+  getTimeFramePolicy,
+  getUniversalActionPolicy,
+  GLOBAL_CONSTANTS,
+  EnableSessionData,
 } from '@rhinestone/module-sdk'
 import { User } from '../user/schemas/user.schema.js';
 import { getAccountNonce } from 'permissionless/actions';
 import { entryPoint07Address, getUserOperationHash } from 'viem/account-abstraction';
-// necessary imports
+import { Policy } from './Types.js';
 
 @Injectable()
 export class Erc7579SafeService {
@@ -150,9 +156,35 @@ export class Erc7579SafeService {
     }
   }
 
-  async configureSession(user: User, safeAddress: Hex, chainId: number, sessionConfigDto: SafeSessionConfigDto, privateKey: Hex | null = null) {
+  getPolicy(policy: 'sudo' | 'spendingLimits' | 'valueLimit' | 'timeFrame' | 'universalAction', params: any): Policy {
+    if (policy === 'sudo') {
+      return getSudoPolicy();
+    }
+
+    if (policy === 'spendingLimits') {
+      return getSpendingLimitsPolicy(params);
+    }
+
+    if (policy === 'valueLimit') {
+      return getValueLimitPolicy(params);
+    }
+
+    if (policy === 'timeFrame') {
+      return getTimeFramePolicy(params);
+    }
+
+    if (policy === 'universalAction') {
+      return getUniversalActionPolicy(params);
+    }
+    
+    throw new Error(`Unknown policy type: ${policy}`);
+  }
+
+  async configureSmartSession(user: User, safeAddress: Hex, chainId: number, sessionConfigDto: SafeSessionConfigDto, privateKey: Hex | null = null) {
 
     this.logger.log(`Configuring sessions`);
+
+    this.logger.debug(JSON.stringify(sessionConfigDto));
 
     const smartAccountClient = await this.rpcService.getSmartAccountClient(chainId, safeAddress);
 
@@ -161,53 +193,126 @@ export class Erc7579SafeService {
     const sessionOwner = privateKeyToAccount(pk)
 
     // address: '0x6D7A849791a8E869892f11E01c2A5f3b25a497B6',
-    const transfer = prepareEncodeFunctionData({
-      abi: [
-        {
-          inputs: [],
-          name: 'getLastGreeter',
-          outputs: [{ internalType: 'address', name: '', type: 'address' }],
-          stateMutability: 'view',
-          type: 'function',
-        },
-        {
-          inputs: [],
-          name: 'greet',
-          outputs: [],
-          stateMutability: 'nonpayable',
-          type: 'function',
-        },
-      ],
-      functionName: 'greet',
-    })
+    interface Action {
+      actionTarget: Address;
+      actionTargetSelector: Hex;
+      actionPolicies: Policy[];
+    }
 
-    this.logger.warn('transfer', transfer);
- 
+    const actions: Action[] = []
+
+    let userOpPolicies: Policy[] = [];
+
+    for (const policy of sessionConfigDto.userOpPolicies) {
+      if (policy.policy) {
+        const policyObject = this.getPolicy(policy.policy, policy.params);
+
+        userOpPolicies.push(policyObject);
+
+        if (policy.policy === 'spendingLimits') {
+          for (const param of policy.params) {
+            actions.push({
+              actionTarget: param.token,
+              actionTargetSelector: "0xa9059cbb", // transfer
+              actionPolicies: [policyObject],
+            })
+
+            // actions.push({
+            //   actionTarget: param.token,
+            //   actionTargetSelector: "0x23b872dd", // transferFrom
+            //   actionPolicies: [policyObject],
+            // })
+
+            // actions.push({
+            //   actionTarget: param.token,
+            //   actionTargetSelector: "0x70a08231", // balanceOf
+            //   actionPolicies: [policyObject],
+            // })
+
+            // // counter
+            // actions.push({
+            //   actionTarget: "0x9a8964D72c345922DA64E79df99697bCB78B3b70" as Address,
+            //   actionTargetSelector: "0x6057361d" as Hex,
+            //   actionPolicies: [policyObject],
+            // })
+
+            // // some contract on base
+            // actions.push({
+            //   actionTarget: "0x19575934a9542be941d3206f3ecff4a5ffb9af88" as Address,
+            //   actionTargetSelector: "0xd09de08a" as Hex,
+            //   actionPolicies: [policyObject],
+            // })
+          }
+        }
+      }
+    }
+
+    // if (sessionConfigDto.actions && sessionConfigDto.actions.length > 0) {
+    //   for (const action of sessionConfigDto.actions) {
+    //     actions.push({
+    //       actionTarget: action.actionTarget,
+    //       actionTargetSelector: action.actionTargetSelector,
+    //       actionPolicies: [getSudoPolicy()],
+    //     })
+    //   }
+
+    //   actions.push({
+    //     actionTarget: "0x9a8964D72c345922DA64E79df99697bCB78B3b70" as Address,
+    //     actionTargetSelector: "0x6057361d" as Hex,
+    //     actionPolicies: [getSudoPolicy()],
+    //   })
+    // }
+
     const session: Session = {
       sessionValidator: OWNABLE_VALIDATOR_ADDRESS,
       sessionValidatorInitData: encodeValidationData({
         threshold: 1,
         owners: [sessionOwner.address],
       }),
-      salt: sessionConfigDto.salt ? toHex(toBytes(sessionConfigDto.salt, { size: 32 })) : toHex(toBytes('0', { size: 32 })),
-      userOpPolicies: sessionConfigDto.userOpPolicies ? sessionConfigDto.userOpPolicies : [getSudoPolicy()],
+      salt: sessionConfigDto.salt ? toHex(toBytes(sessionConfigDto.salt, { size: 32 })) : toHex(toBytes('6', { size: 32 })),
+      userOpPolicies: userOpPolicies,
       erc7739Policies: sessionConfigDto.erc7739Policies ? sessionConfigDto.erc7739Policies : {
         allowedERC7739Content: [],
         erc1271Policies: [],
       },
-      actions: sessionConfigDto.actions,
-      // [
+      actions: actions && actions.length > 0 ? actions : 
+      [
         // {
-          // actionTarget: '0x6D7A849791a8E869892f11E01c2A5f3b25a497B6' as Address, // an address as the target of the session execution
-          // actionTargetSelector: '0xcfae3217' as Hex, // function selector to be used in the execution, in this case no function selector is used
-          // actionPolicies: [getSudoPolicy()],
+        //   actionTarget: "0x9a8964D72c345922DA64E79df99697bCB78B3b70" as Address,
+        //   actionTargetSelector: "0x6057361d" as Hex,
+        //   actionPolicies: [getSudoPolicy()],
+        // },
+        {
+          actionTarget: "0x6607d7180e8ea6102BC824f5cAf7Bdec46334804" as Address,
+          actionTargetSelector: "0x6057361d" as Hex,
+          actionPolicies: [getSudoPolicy()],
+        }
+        // {
+        //   actionTarget: "0x80EbA3855878739F4710233A8a19d89Bdd2ffB8E",
+        //   actionTargetSelector: "0xb35d7e73",
+        //   actionPolicies: [getSudoPolicy()],
+        // }
+        // {
+        //   actionTarget: GLOBAL_CONSTANTS.SMART_SESSIONS_FALLBACK_TARGET_FLAG, 
+        //   actionTargetSelector: GLOBAL_CONSTANTS.SMART_SESSIONS_FALLBACK_TARGET_SELECTOR_FLAG,
+        //   actionPolicies: [getSudoPolicy()],
         // },
         // {
-      //     actionTarget: "0x19575934a9542be941d3206f3ecff4a5ffb9af88" as Address,
-      //     actionTargetSelector: "0xd09de08a" as Hex,
-      //     actionPolicies: [getSudoPolicy()],
-      //   },
-      // ],
+        //   actionTarget: "0xE592427A0AEce92De3Edee1F18E0157C05861564" as Address,
+        //   actionTargetSelector: "0x414bf389" as Hex,
+        //   actionPolicies: [getSudoPolicy()],
+        // },
+        // {
+        //   actionTarget: "0xE592427A0AEce92De3Edee1F18E0157C05861564" as Address,
+        //   actionTargetSelector: "0x4aa4a4fc" as Hex,
+        //   actionPolicies: [getSudoPolicy()],
+        // },
+        // {
+        //   actionTarget: "0x19575934a9542be941d3206f3ecff4a5ffb9af88" as Address,
+        //   actionTargetSelector: "0xd09de08a" as Hex,
+        //   actionPolicies: [getSudoPolicy()],
+        // },
+      ],
       chainId: BigInt(smartAccountClient.chain.id),
       permitERC4337Paymaster: true,
     }
@@ -227,7 +332,8 @@ export class Erc7579SafeService {
       sessions: [session],
       account,
       clients: [publicClient as PublicClient],
-      enableValidatorAddress: WEBAUTHN_VALIDATOR_ADDRESS // WEBAUTHN_VALIDATOR_ADDRESS //0x2f167e55d42584f65e2e30a748f41ee75a311414,
+      enableValidatorAddress: WEBAUTHN_VALIDATOR_ADDRESS,
+      // permitGenericPolicy: true,
     })
 
     this.logger.verbose(`Session details:`, sessionDetails);
@@ -242,37 +348,30 @@ export class Erc7579SafeService {
 
     safe.safeModuleSessionConfig?.push({
       sessionKey: pk,
-      sessionConfigHash: hash,
+      sessionDetails: JSON.stringify(sessionDetails, (_, v) => typeof v === 'bigint' ? v.toString() : v), // Convert BigInt to string
+      permissionEnableHash: hash,
+      permissionId: sessionDetails.permissionId,
+      endpoint: {
+        active: false,
+        url: keccak256(pk),
+      },
     });
 
     await user.save();
 
     return {hash, passkeyId: JSON.parse(user.safesByChain.find(sbc => sbc.chainId === chainId)?.safes.find(s => s.safeAddress === safeAddress)?.safeModulePasskey!).id};
-
-    // const config = sessionConfig || {
-    //   owner: owner.address,
-    //   threshold: 1,
-    //   owners: [owner.address],
-    // }
-
-
-    // const opHash = await smartAccountClient.installModule(sessionConfig)
-    
-    
-
-
-    // const sessionConfig = {
-    //   owner: owner.address,
-    //   threshold: 1,
-    //   owners: [owner.address],
-    // }
   }
 
   async signSessionCreation(user: User, safeAddress: Hex, chainId: number, hash: Hex, signature: Hex ) {
 
     this.logger.log(`Signing session creation`);
 
+    const session = user.safesByChain.find(sbc => sbc.chainId === chainId)?.safes.find(s => s.safeAddress === safeAddress)?.safeModuleSessionConfig?.find(sc => sc.permissionEnableHash === hash);
+
     const sessionDetails = this.retrieveState(hash);
+    // const sessionDetailsJSON = session?.sessionDetails;
+
+    // const sessionDetails = JSON.parse(sessionDetailsJSON!);
 
     sessionDetails.enableSessionData.enableSession.permissionEnableSig = signature;
 
@@ -302,6 +401,12 @@ export class Erc7579SafeService {
       threshold: 1,
     })
 
+    // const target = "0xaf88d065e77c8cC2239327C5EDb3A432268e5831"// sessionDetails.enableSessionData.sessionToEnable.actions[0].actionTarget;
+    // const selector = "0x70a08231"
+
+    // this.logger.warn('target', target);
+    // this.logger.warn('selector', selector);
+
     // sessionDetails.signature = getWebauthnValidatorMockSignature();
 
 
@@ -310,22 +415,22 @@ export class Erc7579SafeService {
     //       actionTargetSelector: '0xcfae3217' 
 
 
-      const calls = [
-        {
-          to: '0x6D7A849791a8E869892f11E01c2A5f3b25a497B6',
-          functionName: 'greet',
-          abi: [
-            {
-              inputs: [],
-              name: 'greet', 
-              outputs: [],
-              stateMutability: 'nonpayable',
-              type: 'function',
-            },
-          ],
-          args: [],
-        },
-      ];
+      // const calls = [
+      //   {
+      //     to: '0x6D7A849791a8E869892f11E01c2A5f3b25a497B6',
+      //     functionName: 'greet',
+      //     abi: [
+      //       {
+      //         inputs: [],
+      //         name: 'greet', 
+      //         outputs: [],
+      //         stateMutability: 'nonpayable',
+      //         type: 'function',
+      //       },
+      //     ],
+      //     args: [],
+      //   },
+      // ];
 
       // const executeOrderData = encodeFunctionData({
       //   abi: parseAbi(['function executeOrder(uint256, uint160, uint256, uint24)']),
@@ -348,10 +453,16 @@ export class Erc7579SafeService {
     // });
 
     const callData = encodeFunctionData({
-      abi: parseAbi(['function greet()']),
-      functionName: 'greet',
-      args: [],
+      abi: parseAbi(['function store(uint256)']),
+      functionName: 'store',
+      args: [1n],
     });
+
+    // const callData = encodeFunctionData({
+    //   abi: parseAbi(['function transfer(address,uint256)']),
+    //   functionName: 'transfer',
+    //   args: ["0xb0754B937bD306fE72264274A61BC03F43FB685F" as Address, 1n],
+    // });
 
     // const userOpConfig: PrepareUserOperationParameters = {
     //   account: smartAccountClient.account!,
@@ -375,11 +486,31 @@ export class Erc7579SafeService {
     const userOperation = await smartAccountClient.prepareUserOperation({
       account: smartAccountClient.account!,
       calls: [
+        // {
+        //   to: '0x9a8964D72c345922DA64E79df99697bCB78B3b70' as Address,// store contract arbitrum
+        //   value: BigInt(0),
+        //   data: callData,
+        // },
         {
-          to: "0x19575934a9542be941d3206f3ecff4a5ffb9af88",
+          to: '0x6607d7180e8ea6102BC824f5cAf7Bdec46334804' as Address,// store contract base-sepolia
           value: BigInt(0),
-          data: "0xd09de08a",
-        }
+          data: callData,
+        },
+        // {
+        //   to: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831' as Address, // usdc arbitrum
+        //   value: BigInt(0),
+        //   data: callData,
+        // },
+        // {
+        //   to: "0xE592427A0AEce92De3Edee1F18E0157C05861564" as Address,
+        //   value: BigInt(0),
+        //   data: "0x4aa4a4fc",
+        // },
+        // {
+        //   to: "0x19575934a9542be941d3206f3ecff4a5ffb9af88",
+        //   value: BigInt(0),
+        //   data: "0xd09de08a",
+        // }
       ],
       // calls,
       // calls: [
@@ -407,7 +538,8 @@ export class Erc7579SafeService {
       userOperation,
     })
 
-    const pk = user.safesByChain.find(sbc => sbc.chainId === chainId)?.safes.find(s => s.safeAddress === safeAddress)?.safeModuleSessionConfig?.find(sc => sc.sessionConfigHash === hash)?.sessionKey;
+    // const pk = user.safesByChain.find(sbc => sbc.chainId === chainId)?.safes.find(s => s.safeAddress === safeAddress)?.safeModuleSessionConfig?.find(sc => sc.permissionEnableHash === hash)?.sessionKey;
+    const pk = session?.sessionKey;
 
     this.logger.warn('pk', pk);
 
