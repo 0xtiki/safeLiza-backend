@@ -74,6 +74,70 @@ export class UserService {
     return user ? true : false;
   }
 
+  async verifyEndpoint(path: string): Promise<{ session: { sessionKey: string, sessionDetails: string }, safeAddress: string, chainId: number } | null> {
+    const result = await this.userModel.aggregate([
+      {
+        $match: {
+          'safesByChain.safes.safeModuleSessionConfig.endpoint.url': path,
+          'safesByChain.safes.safeModuleSessionConfig.endpoint.active': true
+        }
+      },
+      {
+        $unwind: '$safesByChain'
+      },
+      {
+        $unwind: '$safesByChain.safes'
+      },
+      {
+        $project: {
+          _id: 0,
+          session: {
+            $arrayElemAt: [
+              {
+                $filter: {
+                  input: '$safesByChain.safes.safeModuleSessionConfig',
+                  as: 'config',
+                  cond: {
+                    $and: [
+                      { $eq: ['$$config.endpoint.url', path] },
+                      { $eq: ['$$config.endpoint.active', true] }
+                    ]
+                  }
+                }
+              },
+              0
+            ]
+          },
+          safeAddress: '$safesByChain.safes.safeAddress',
+          chainId: '$safesByChain.chainId',
+          // sessionDetails: {
+          //   $arrayElemAt: [
+          //     {
+          //       $filter: {
+          //         input: '$safesByChain.safes.safeModuleSessionConfig',
+          //         as: 'config',
+          //         cond: {
+          //           $and: [
+          //             { $eq: ['$$config.endpoint.url', path] },
+          //             { $eq: ['$$config.endpoint.active', true] }
+          //           ]
+          //         }
+          //       }
+          //     },
+          //     0
+          //   ]
+          // }
+        }
+      }
+    ]).exec();
+
+    console.log('RESULT', result);
+
+    const filteredResult = result.filter(r => r.session);
+
+    return filteredResult.length > 0 ? filteredResult[0] : null;
+  }
+
   async addSafe(identifier: string, safeConfig: SafeConfigResultDto): Promise<User | null> {
 
     let user: User | null = null;

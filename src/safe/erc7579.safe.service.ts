@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-// import { getOwnableValidator, getOwnableValidatorOwners, getSmartSessionsValidator } from '@rhinestone/module-sdk';
 import { RpcService } from './rpc.service.js';
 import { Address, Client, encodeFunctionData, Hex, parseAbi, parseEther, PublicClient, toBytes, toHex, prepareEncodeFunctionData, HexToBytesErrorType, keccak256 } from 'viem';
 import { PasskeyDto, SafeSessionConfigDto } from './safe.dtos.js';
@@ -277,14 +276,24 @@ export class Erc7579SafeService {
       },
       actions: actions && actions.length > 0 ? actions : 
       [
+        {
+          actionTarget: "0x9a8964D72c345922DA64E79df99697bCB78B3b70" as Address,
+          actionTargetSelector: "0x6057361d" as Hex,
+          actionPolicies: [getSudoPolicy()],
+        },
         // {
-        //   actionTarget: "0x9a8964D72c345922DA64E79df99697bCB78B3b70" as Address,
+        //   actionTarget: "0x6607d7180e8ea6102BC824f5cAf7Bdec46334804" as Address,
         //   actionTargetSelector: "0x6057361d" as Hex,
         //   actionPolicies: [getSudoPolicy()],
         // },
         {
-          actionTarget: "0x6607d7180e8ea6102BC824f5cAf7Bdec46334804" as Address,
-          actionTargetSelector: "0x6057361d" as Hex,
+          actionTarget: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831" as Address,
+          actionTargetSelector: "0x095ea7b3" as Hex,
+          actionPolicies: [getSudoPolicy()],
+        },
+        {
+          actionTarget: "0x80EbA3855878739F4710233A8a19d89Bdd2ffB8E" as Address,
+          actionTargetSelector: "0xb35d7e73" as Hex,
           actionPolicies: [getSudoPolicy()],
         }
         // {
@@ -486,16 +495,16 @@ export class Erc7579SafeService {
     const userOperation = await smartAccountClient.prepareUserOperation({
       account: smartAccountClient.account!,
       calls: [
-        // {
-        //   to: '0x9a8964D72c345922DA64E79df99697bCB78B3b70' as Address,// store contract arbitrum
-        //   value: BigInt(0),
-        //   data: callData,
-        // },
         {
-          to: '0x6607d7180e8ea6102BC824f5cAf7Bdec46334804' as Address,// store contract base-sepolia
+          to: '0x9a8964D72c345922DA64E79df99697bCB78B3b70' as Address,// store contract arbitrum
           value: BigInt(0),
           data: callData,
         },
+        // {
+        //   to: '0x6607d7180e8ea6102BC824f5cAf7Bdec46334804' as Address,// store contract base-sepolia
+        //   value: BigInt(0),
+        //   data: callData,
+        // },
         // {
         //   to: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831' as Address, // usdc arbitrum
         //   value: BigInt(0),

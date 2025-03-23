@@ -10,5 +10,6 @@ import { UserModule } from '../user/user.module.js';
   imports: [ConfigModule.forRoot(), UserModule],
   providers: [ConfigSafeService, TransactSafeService, Erc7579SafeService, RpcService],
   controllers: [SafeController],
+  exports: [RpcService],
 })
 export class SafeModule {} 

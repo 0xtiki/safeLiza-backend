@@ -1,99 +1,128 @@
+# Smart Agent Wallet Backend
+
 <p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
+  <img src="safeLiza.webp" alt="Safe Liza" width="600" />
 </p>
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
-
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
+<p align="center">
+  🚀 ✨ <b>Make sure to also check out the frontend repo here <Link></b> ✨ 🚀
 </p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
 
-## Description
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Overview
 
-## Project setup
+Welcome to the Smart Agent Wallet Backend! This project provides a robust and user-friendly backend service for creating and managing Gnosis Safe smart wallets with permissioned access for AI agents. 
+
+The Smart Agent Wallet makes it easy to:
+- Create secure Gnosis Safe wallets across multiple chains
+- Configure fine-grained permissions for automated agents
+- Enable AI assistants to execute transactions on your behalf
+- Maintain control while delegating specific capabilities
+
+## Purpose
+
+Managing crypto assets can be complex and risky, especially when trying to automate transactions or integrate with AI agents. This backend solves these challenges by:
+
+1. **Simplifying Smart Wallet Creation**: Easy setup of Gnosis Safe wallets with passkey authentication
+2. **Enabling Permissioned Access**: Create secure sessions with specific limitations (spending limits, time frames, etc.)
+3. **Easy Integration**: Simple to integrate via REST API (tool call)
+4. **Reducing Risk**: Granular control over what actions agents can perform
+5. **Improving User Experience**: Abstract away the complexity of blockchain interactions
+
+## Key Features
+
+### Safe Creation and Management
+- Multi-chain support for deploying Gnosis Safe wallets
+- Multiple authentication methods (passkeys, multisig)
+- ERC-7579 module integration for enhanced functionality
+
+### Session Management
+- Create permissioned sessions for AI agents
+- Configure policies like:
+  - Spending limits
+  - Value limits per transaction
+  - Time-based restrictions
+  - Action-specific permissions
+
+### Agent Integration
+- Secure endpoints for agent access
+- Transaction execution with proper validation
+- Support for complex multi-step operations
+
+### Security
+- Passkey authentication support
+- Session-based access control
+- Validator modules for transaction verification
+
+## Technical Stack
+
+- **Framework**: NestJS
+- **Database**: MongoDB with Mongoose
+- **Blockchain Interaction**: Viem, Permissionless, Safe Protocol Kit
+- **Authentication**: Passport with FIDO2 WebAuthn
+- **Module System**: Rhinestone Module SDK for Safe extensions
+
+## Getting Started
+
+### Prerequisites
+- Node.js
+- MongoDB
+- API keys for RPC providers and Pimlico
+
+### Installation
 
 ```bash
-$ yarn install
+# Clone the repository
+git clone https://github.com/0xtiki/smart-agent-wallet-backend.git
+
+# Install dependencies
+cd smart-agent-wallet-backend
+npm install
+
+# Set up environment variables
+cp .env.example .env
+# Edit .env with your configuration
+
+# Start the server
+npm run start:dev
 ```
 
-## Compile and run the project
+### Configuration
 
-```bash
-# development
-$ yarn run start
+The backend requires several environment variables:
+- `PORT`: Port to run the server on
+- `MONGODB_URI`: MongoDB connection string
+- `NODE_ENV`: Environment (development, production)
+- `RPC_URL_*`: RPC endpoints for different chains (e.g. RPC_URL_1, RPC_URL_42161, etc.)
+- `PIMLICO_API_KEY`: For gas sponsorship
+- `PIMLICO_URL`: https://api.pimlico.io/v2
+- `PRIVATE_KEY`: For initial Safe deployment
+- `ETHERSCAN_API_KEY`: For data fetching
+- `SAFE_4337_MODULE_ADDRESS`: 0x7579EE8307284F293B1927136486880611F20002
+- `ERC7579_LAUNCHPAD_ADDRESS`: 0x7579011aB74c46090561ea277Ba79D510c6C00ff
 
-# watch mode
-$ yarn run start:dev
+## Usage Flow
 
-# production mode
-$ yarn run start:prod
-```
+1. **Create a Safe**: Deploy a new Safe with passkey or multisig authentication
+2. **Install Modules**: Set up validator modules for different authentication methods
+3. **Configure Sessions**: Create permissioned sessions for agents with specific policies
+4. **Activate Endpoints**: Enable secure endpoints for agent access
+5. **Agent Execution**: Agents can now execute transactions within their permissions
 
-## Run tests
+## Contributing
 
-```bash
-# unit tests
-$ yarn run test
-
-# e2e tests
-$ yarn run test:e2e
-
-# test coverage
-$ yarn run test:cov
-```
-
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ yarn install -g mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+This project is licensed under the MIT License.
+
+## Acknowledgments
+
+- [Safe Global](https://safe.global/) for their smart contract wallet infrastructure
+- [Rhinestone](https://rhinestone.wtf/) for their module SDK
+- [Pimlico](https://pimlico.io/) for gas sponsorship capabilities
+
+---
+
+Happy and secure agent automation! 🤖💼🔒
