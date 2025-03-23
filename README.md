@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  🚀 ✨ <b>Make sure to also check out the frontend repo <a href="https://github.com/0xtiki/smart-agent-wallet-frontend">here</a></b> ✨ 🚀
+  🚀 ✨ <b>Make sure to also check out the frontend repo <a href="https://github.com/0xtiki/safeLiza-frontend">here</a></b> ✨ 🚀
 </p>
 
 
